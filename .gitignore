@@ -1,0 +1,12 @@
+# ComfyUI is cloned in by scripts/install_comfyui.sh, not vendored.
+/ComfyUI/
+# Model weights are downloaded, never committed.
+*.safetensors
+*.ckpt
+*.pt
+*.bin
+# Generated output
+/output/
+__pycache__/
+*.pyc
+.venv/
