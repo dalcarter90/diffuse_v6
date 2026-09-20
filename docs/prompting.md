@@ -44,9 +44,16 @@ so the rating tag is doing real work whichever way you point it:
 | `rating_questionable`  | suggestive                               |
 | `rating_explicit`      | explicit                                 |
 
-The bundled workflow puts `rating_safe` in the positive prompt and
-`rating_explicit, rating_questionable` in the negative. That is a default, not
-a lock — edit the two `CLIPTextEncode` nodes to change it.
+The bundled workflow asks for `rating_explicit`, with `rating_safe` in the
+negative prompt to keep the steer sharp. Change it either by editing the two
+`CLIPTextEncode` nodes in the browser, or by regenerating the workflow:
+
+```bash
+python3 scripts/make_workflow.py --rating safe          # or questionable, explicit
+```
+
+Pairing the rating you want with its opposite in the negative prompt matters —
+the same tag on both sides has the two prompts pulling against each other.
 
 ## Source tags
 
@@ -107,7 +114,7 @@ your GPU dislikes — start the server with `./scripts/run.sh --fp32-vae`.
 
 ```
 score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up,
-rating_safe, source_anime,
+rating_explicit, source_anime,
 
 1girl, solo, long silver hair, blue eyes, detailed face,
 standing in a sunlit forest, dappled light, intricate detail
@@ -116,7 +123,7 @@ standing in a sunlit forest, dappled light, intricate detail
 Negative:
 
 ```
-score_6, score_5, score_4, rating_explicit, rating_questionable,
+score_6, score_5, score_4, rating_safe,
 worst quality, low quality, lowres, bad anatomy, bad hands,
 extra digits, fewer digits, jpeg artifacts, signature, watermark,
 username, blurry, text

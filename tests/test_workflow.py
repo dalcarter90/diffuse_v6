@@ -162,10 +162,22 @@ def main():
     check("latent is SDXL-native 1024x1024",
           (latent["inputs"]["width"], latent["inputs"]["height"]) == (1024, 1024))
 
-    pos = min((n for n in api.values() if n["class_type"] == "CLIPTextEncode"),
-              key=lambda n: 0 if "score_9" in n["inputs"]["text"] else 1)
+    encoders = [n for n in api.values() if n["class_type"] == "CLIPTextEncode"]
+    pos = min(encoders, key=lambda n: 0 if "score_9" in n["inputs"]["text"] else 1)
+    neg = next(n for n in encoders if n is not pos)
     check("the positive prompt carries the score_9 tag prefix",
           pos["inputs"]["text"].startswith("score_9, score_8_up, score_7_up"))
+
+    # A rating tag on both sides would have the prompts fighting each other.
+    ratings = {"rating_safe", "rating_questionable", "rating_explicit"}
+    in_pos = {r for r in ratings if r in pos["inputs"]["text"]}
+    in_neg = {r for r in ratings if r in neg["inputs"]["text"]}
+    check("exactly one rating tag is requested", len(in_pos) == 1, str(in_pos))
+    check("no rating tag is in both the positive and negative prompt",
+          not (in_pos & in_neg), str(in_pos & in_neg))
+    check("the negative prompt opposes the requested rating",
+          bool(in_neg) and not (in_pos & in_neg), f"positive={in_pos} negative={in_neg}")
+    print(f"     (workflow is set to {in_pos.pop() if in_pos else '?'})")
 
     print()
     print("FAILED: " + ", ".join(failures) if failures else "all workflow tests passed")

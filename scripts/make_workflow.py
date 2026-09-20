@@ -22,21 +22,35 @@ import pathlib
 # noticeably worse output - see docs/prompting.md.
 SCORE_PREFIX = "score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up"
 
-DEFAULT_POSITIVE = (
-    f"{SCORE_PREFIX}, rating_safe, source_anime,\n\n"
+# Which rating band the workflow asks for. Pony V6 responds strongly to this
+# tag, so the negative prompt gets the opposing band to keep the steer sharp.
+RATINGS = ("safe", "questionable", "explicit")
+OPPOSING_RATING = {
+    "safe": "rating_explicit, rating_questionable",
+    "questionable": "rating_safe",
+    "explicit": "rating_safe",
+}
+
+DEFAULT_SUBJECT = (
     "1girl, solo, long silver hair, blue eyes, detailed face, "
     "standing in a sunlit forest, dappled light, intricate detail"
 )
 
 # score_4..6 in the negative pushes away from the low-quality end of the same
-# scale. The rating_ tags keep the default output tame; drop them if you want
-# the model's full range.
-DEFAULT_NEGATIVE = (
-    "score_6, score_5, score_4, rating_explicit, rating_questionable, "
+# scale the positive score tags select from.
+QUALITY_NEGATIVE = (
     "worst quality, low quality, lowres, bad anatomy, bad hands, "
     "extra digits, fewer digits, jpeg artifacts, signature, watermark, "
     "username, blurry, text"
 )
+
+
+def positive_prompt(rating, subject=DEFAULT_SUBJECT, source="source_anime"):
+    return f"{SCORE_PREFIX}, rating_{rating}, {source},\n\n{subject}"
+
+
+def negative_prompt(rating):
+    return f"score_6, score_5, score_4, {OPPOSING_RATING[rating]}, {QUALITY_NEGATIVE}"
 
 
 class Graph:
@@ -210,14 +224,19 @@ def main():
     ap.add_argument("--sampler", default="euler_ancestral")
     ap.add_argument("--scheduler", default="normal")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--rating", choices=RATINGS, default="explicit",
+                    help="which rating band the prompts ask for (default: explicit)")
     ap.add_argument("--outdir", default=None)
     args = ap.parse_args()
 
-    g = build(args.ckpt, DEFAULT_POSITIVE, DEFAULT_NEGATIVE, args.width, args.height,
+    positive = positive_prompt(args.rating)
+    negative = negative_prompt(args.rating)
+
+    g = build(args.ckpt, positive, negative, args.width, args.height,
               args.steps, args.cfg, args.sampler, args.scheduler, args.seed)
 
     # The API format must not carry the UI-only widgets.
-    api_graph = build(args.ckpt, DEFAULT_POSITIVE, DEFAULT_NEGATIVE, args.width,
+    api_graph = build(args.ckpt, positive, negative, args.width,
                       args.height, args.steps, args.cfg, args.sampler,
                       args.scheduler, args.seed)
     for node in api_graph.nodes:

@@ -37,7 +37,7 @@ CPU. Override with `--backend nvidia|rocm|xpu|mps|cpu` if the guess is wrong.
 | `scripts/download_model.sh` | Resolves the current Pony V6 XL file through the Civitai API, downloads it into `ComfyUI/models/checkpoints/ponyDiffusionV6XL.safetensors`, and verifies the SHA256. Resumes if interrupted. |
 | `scripts/run.sh` | Starts the server. Extra arguments pass through to ComfyUI (`--lowvram`, `--listen 0.0.0.0`, `--port 8189`, `--fp32-vae`, …). |
 | `scripts/generate.py` | Generates from the command line against the running server. Standard library only. |
-| `scripts/make_workflow.py` | Regenerates the two workflow files, e.g. after renaming the checkpoint. |
+| `scripts/make_workflow.py` | Regenerates the two workflow files, e.g. after renaming the checkpoint (`--ckpt`) or changing the rating band (`--rating`). |
 | `scripts/resolve_civitai.py` | Picks the right file out of a Civitai API response. Used by the downloader. |
 
 Set `COMFY_DIR` to install ComfyUI somewhere other than `./ComfyUI` — useful if
@@ -68,8 +68,8 @@ that `/prompt` accepts.
 
 It is a plain SDXL text-to-image graph with the Pony-specific bits set
 correctly: **CLIP skip 2** (`CLIPSetLastLayer` at `-2`), the **score tag
-prefix** in the positive prompt, **1024×1024** latents, CFG 7 and 30 steps of
-`euler_ancestral`.
+prefix** in the positive prompt, **`rating_explicit`** with `rating_safe`
+negated, **1024×1024** latents, CFG 7 and 30 steps of `euler_ancestral`.
 
 Those settings are not arbitrary and the model is noticeably worse without
 them — **[docs/prompting.md](docs/prompting.md)** explains the score tags,
@@ -130,8 +130,13 @@ actually have.
 ## Note on the model
 
 Pony Diffusion V6 XL is a general-purpose model whose training data includes
-explicit content, and it is capable of producing it. The bundled workflow
-defaults to `rating_safe` with `rating_explicit` in the negative prompt. See
-[docs/prompting.md](docs/prompting.md) for how the rating tags work, and the
-model's own licence terms on its Civitai page for what you may do with the
+explicit content. The bundled workflow asks for `rating_explicit`. Switch bands
+by regenerating it:
+
+```bash
+python3 scripts/make_workflow.py --rating safe          # or questionable, explicit
+```
+
+See [docs/prompting.md](docs/prompting.md) for how the rating tags work, and
+the model's licence terms on its Civitai page for what you may do with the
 output.
