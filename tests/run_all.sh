@@ -44,5 +44,13 @@ echo "== generate.py =="
 python3 tests/test_generate.py || status=1
 
 echo
+echo "== mobile server =="
+python3 tests/test_mobile.py || status=1
+
+echo
+echo "== mobile page in a browser =="
+python3 tests/test_mobile_browser.py || status=1
+
+echo
 if [ "$status" -eq 0 ]; then echo "ALL CHECKS PASSED"; else echo "SOME CHECKS FAILED"; fi
 exit "$status"

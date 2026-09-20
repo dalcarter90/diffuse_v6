@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Pony V6 XL</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238b7bf7'/%3E%3Ccircle cx='16' cy='13' r='5' fill='%23fff'/%3E%3Cpath d='M6 27c0-5.5 4.5-9 10-9s10 3.5 10 9z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #14141a; --panel: #1e1e27; --line: #32323f;
+    --text: #eceaf2; --muted: #9a97ab; --accent: #8b7bf7; --accent-text: #fff;
+    --danger: #ff6b6b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f5f4f8; --panel: #fff; --line: #e0dee8;
+      --text: #1a1822; --muted: #6b6880; --accent: #6d5ce0; --accent-text: #fff;
+    }
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    max-width: 640px; margin-inline: auto;
+  }
+  h1 { font-size: 1.15rem; margin: 4px 0 16px; letter-spacing: -0.01em; }
+  h1 span { color: var(--muted); font-weight: 400; }
+  label { display: block; font-size: .8rem; color: var(--muted);
+          margin: 0 0 6px; text-transform: uppercase; letter-spacing: .05em; }
+  .card { background: var(--panel); border: 1px solid var(--line);
+          border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+  textarea, input, select {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 10px; padding: 11px;
+    font: inherit; font-size: 16px; /* 16px stops iOS zooming on focus */
+  }
+  textarea { resize: vertical; min-height: 92px; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; min-width: 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    flex: 1 1 auto; text-align: center; padding: 9px 12px; border-radius: 999px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--muted);
+    font-size: .85rem; cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--accent); border-color: var(--accent); color: var(--accent-text);
+  }
+  button.go {
+    width: 100%; padding: 15px; font-size: 1.05rem; font-weight: 600;
+    background: var(--accent); color: var(--accent-text);
+    border: 0; border-radius: 12px; cursor: pointer;
+  }
+  button.go:disabled { opacity: .55; }
+  button.cancel {
+    width: 100%; padding: 11px; margin-top: 8px; background: transparent;
+    color: var(--danger); border: 1px solid var(--line); border-radius: 10px;
+    font-size: .9rem; cursor: pointer;
+  }
+  details summary { cursor: pointer; color: var(--muted); font-size: .85rem; }
+  details[open] summary { margin-bottom: 12px; }
+  .field + .field { margin-top: 12px; }
+  #status { text-align: center; color: var(--muted); font-size: .88rem;
+            min-height: 1.5em; margin: 12px 0; }
+  #status.err { color: var(--danger); white-space: pre-wrap; text-align: left; }
+  #out img { width: 100%; border-radius: 12px; display: block; margin-bottom: 8px; }
+  .hint { color: var(--muted); font-size: .78rem; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<h1>Pony V6 XL <span id="head-note"></span></h1>
+
+<div class="card">
+  <div class="field">
+    <label for="prompt">Prompt</label>
+    <textarea id="prompt" placeholder="a red fox in autumn leaves, forest, morning light"
+              autocapitalize="none" autocomplete="off"></textarea>
+    <div class="hint">The score tags are added automatically.</div>
+  </div>
+
+  <div class="field">
+    <label>Rating</label>
+    <div class="chips" id="rating">
+      <span class="chip" role="button" tabindex="0" data-v="safe">safe</span>
+      <span class="chip" role="button" tabindex="0" data-v="questionable">questionable</span>
+      <span class="chip" role="button" tabindex="0" data-v="explicit">explicit</span>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Shape</label>
+    <div class="chips" id="shape">
+      <span class="chip" role="button" tabindex="0" data-w="832"  data-h="1216">portrait</span>
+      <span class="chip" role="button" tabindex="0" data-w="1024" data-h="1024">square</span>
+      <span class="chip" role="button" tabindex="0" data-w="1216" data-h="832">landscape</span>
+    </div>
+  </div>
+</div>
+
+<details class="card">
+  <summary>More settings</summary>
+  <div class="field">
+    <label for="source">Style</label>
+    <select id="source">
+      <option value="source_anime">anime</option>
+      <option value="source_pony">pony</option>
+      <option value="source_furry">furry</option>
+      <option value="source_cartoon">cartoon</option>
+      <option value="">(none)</option>
+    </select>
+  </div>
+  <div class="field row">
+    <div>
+      <label for="steps">Steps</label>
+      <input id="steps" type="number" inputmode="numeric" value="30" min="1" max="150">
+    </div>
+    <div>
+      <label for="cfg">CFG</label>
+      <input id="cfg" type="number" inputmode="decimal" value="7" min="1" max="20" step="0.5">
+    </div>
+  </div>
+  <div class="field">
+    <label for="seed">Seed <span style="text-transform:none">(blank = random)</span></label>
+    <input id="seed" type="number" inputmode="numeric" placeholder="random">
+  </div>
+  <div class="field">
+    <label for="negative">Negative prompt</label>
+    <textarea id="negative"></textarea>
+  </div>
+</details>
+
+<button class="go" id="go">Generate</button>
+<button class="cancel" id="cancel" hidden>Cancel</button>
+<div id="status"></div>
+<div id="out"></div>
+
+<script>
+"use strict";
+
+const SCORE_PREFIX = "score_9, score_8_up, score_7_up, score_6_up, score_5_up, score_4_up";
+const RATINGS = ["safe", "questionable", "explicit"];
+// Mirrors OPPOSING_RATING in scripts/make_workflow.py.
+const OPPOSING = {
+  safe: "rating_explicit, rating_questionable",
+  questionable: "rating_safe",
+  explicit: "rating_safe",
+};
+
+const $ = (id) => document.getElementById(id);
+const statusEl = $("status"), outEl = $("out");
+
+// The token, if the server was started with --token, arrives as ?key=... once;
+// keep it so later reloads and API calls carry it.
+const params = new URLSearchParams(location.search);
+if (params.get("key")) {
+  try { localStorage.setItem("token", params.get("key")); } catch (e) {}
+  history.replaceState(null, "", location.pathname);
+}
+let token = null;
+try { token = localStorage.getItem("token"); } catch (e) {}
+
+const headers = () => token ? { "X-Token": token } : {};
+
+function setStatus(msg, isError) {
+  statusEl.textContent = msg;
+  statusEl.className = isError ? "err" : "";
+}
+
+// --- chip groups -------------------------------------------------------------
+
+function chipGroup(id, onPick, initial) {
+  const box = $(id);
+  const pick = (el) => {
+    [...box.children].forEach((c) => c.setAttribute("aria-pressed", String(c === el)));
+    onPick(el);
+  };
+  box.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (chip) pick(chip);
+  });
+  box.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(e.target); }
+  });
+  pick(initial ? box.querySelector(initial) : box.children[0]);
+}
+
+let rating = "explicit";
+let width = 1024, height = 1024;
+
+chipGroup("rating", (el) => { rating = el.dataset.v; }, '[data-v="explicit"]');
+chipGroup("shape", (el) => {
+  width = +el.dataset.w; height = +el.dataset.h;
+}, '[data-w="1024"]');
+
+// --- workflow ----------------------------------------------------------------
+
+let template = null;
+
+async function loadWorkflow() {
+  const res = await fetch("workflow.json", { headers: headers() });
+  if (res.status === 401) throw new Error("This server needs a token. Re-open the link that ends in ?key=...");
+  if (!res.ok) throw new Error("could not load the workflow (" + res.status + ")");
+  template = await res.json();
+
+  // Seed the negative box from the workflow so it matches what the repo ships.
+  const encoders = Object.values(template).filter((n) => n.class_type === "CLIPTextEncode");
+  const neg = encoders.find((n) => !n.inputs.text.includes("score_9"));
+  if (neg) $("negative").value = stripRatings(neg.inputs.text);
+  $("head-note").textContent = "";
+}
+
+function stripRatings(text) {
+  return text
+    .replace(/\brating_(safe|questionable|explicit)\b\s*,?\s*/g, "")
+    .replace(/,\s*,/g, ", ")
+    .replace(/^\s*,\s*/, "")
+    .trim();
+}
+
+function findNode(graph, cls) {
+  return Object.entries(graph).find(([, n]) => n.class_type === cls);
+}
+
+function buildGraph() {
+  const graph = structuredClone(template);
+
+  const encoders = Object.values(graph).filter((n) => n.class_type === "CLIPTextEncode");
+  const pos = encoders.find((n) => n.inputs.text.includes("score_9")) || encoders[0];
+  const neg = encoders.find((n) => n !== pos);
+
+  let subject = $("prompt").value.trim();
+  if (!subject) throw new Error("Type a prompt first.");
+  subject = stripRatings(subject);
+
+  const source = $("source").value;
+  const tags = [SCORE_PREFIX, "rating_" + rating];
+  if (source) tags.push(source);
+  pos.inputs.text = tags.join(", ") + ",\n\n" + subject;
+
+  const extraNeg = stripRatings($("negative").value.trim());
+  neg.inputs.text = ["score_6, score_5, score_4", OPPOSING[rating], extraNeg]
+    .filter(Boolean).join(", ");
+
+  const [, ks] = findNode(graph, "KSampler");
+  const seedInput = $("seed").value.trim();
+  ks.inputs.seed = seedInput === ""
+    ? Math.floor(Math.random() * 2 ** 48)
+    : Number(seedInput);
+  ks.inputs.steps = Number($("steps").value) || 30;
+  ks.inputs.cfg = Number($("cfg").value) || 7;
+
+  const [, latent] = findNode(graph, "EmptyLatentImage");
+  latent.inputs.width = width;
+  latent.inputs.height = height;
+
+  return { graph, seed: ks.inputs.seed };
+}
+
+// --- run ---------------------------------------------------------------------
+
+let polling = null;
+
+async function generate() {
+  let built;
+  try {
+    if (!template) await loadWorkflow();
+    built = buildGraph();
+  } catch (err) {
+    return setStatus(err.message, true);
+  }
+
+  $("go").disabled = true;
+  $("cancel").hidden = false;
+  outEl.innerHTML = "";
+  setStatus("queued...");
+
+  let promptId;
+  try {
+    const res = await fetch("prompt", {
+      method: "POST",
+      headers: Object.assign({ "Content-Type": "application/json" }, headers()),
+      body: JSON.stringify({ prompt: built.graph }),
+    });
+    const body = await res.json();
+    if (!res.ok) {
+      // ComfyUI reports validation problems in a nested error object.
+      const detail = body?.error?.message || body?.error || JSON.stringify(body);
+      throw new Error("Rejected: " + detail);
+    }
+    promptId = body.prompt_id;
+  } catch (err) {
+    finish();
+    return setStatus(err.message, true);
+  }
+
+  const started = Date.now();
+  polling = setInterval(async () => {
+    try {
+      const res = await fetch("history/" + promptId, { headers: headers() });
+      const history = await res.json();
+      const entry = history[promptId];
+      if (!entry) {
+        const secs = Math.round((Date.now() - started) / 1000);
+        return setStatus("generating... " + secs + "s");
+      }
+      const images = Object.values(entry.outputs || {}).flatMap((o) => o.images || []);
+      finish();
+      if (!images.length) return setStatus("finished, but produced no image", true);
+      setStatus("seed " + built.seed + " · " + Math.round((Date.now() - started) / 1000) + "s");
+      outEl.innerHTML = "";
+      for (const img of images) {
+        const q = new URLSearchParams({
+          filename: img.filename, subfolder: img.subfolder || "", type: img.type || "output",
+        });
+        if (token) q.set("key", token);
+        const el = document.createElement("img");
+        el.src = "view?" + q.toString();
+        el.alt = "generated image";
+        outEl.appendChild(el);
+      }
+    } catch (err) {
+      finish();
+      setStatus("lost contact with the server: " + err.message, true);
+    }
+  }, 1500);
+}
+
+function finish() {
+  clearInterval(polling);
+  polling = null;
+  $("go").disabled = false;
+  $("cancel").hidden = true;
+}
+
+$("go").addEventListener("click", generate);
+$("cancel").addEventListener("click", async () => {
+  try {
+    await fetch("interrupt", { method: "POST", headers: headers() });
+  } catch (e) {}
+  finish();
+  setStatus("cancelled");
+});
+
+loadWorkflow().catch((err) => setStatus(err.message, true));
+</script>
+</body>
+</html>

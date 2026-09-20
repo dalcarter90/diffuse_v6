@@ -36,6 +36,7 @@ CPU. Override with `--backend nvidia|rocm|xpu|mps|cpu` if the guess is wrong.
 | `scripts/install_comfyui.sh` | Clones ComfyUI into `./ComfyUI`, creates `.venv`, installs PyTorch for your hardware and ComfyUI's requirements, then prints the device torch can see. Re-runnable. |
 | `scripts/download_model.sh` | Resolves the current Pony V6 XL file through the Civitai API, downloads it into `ComfyUI/models/checkpoints/ponyDiffusionV6XL.safetensors`, and verifies the SHA256. Resumes if interrupted. |
 | `scripts/run.sh` | Starts the server. Extra arguments pass through to ComfyUI (`--lowvram`, `--listen 0.0.0.0`, `--port 8189`, `--fp32-vae`, …). |
+| `scripts/serve_mobile.py` | Serves a phone-friendly page on `:8189` and forwards only four endpoints to ComfyUI. See [docs/mobile.md](docs/mobile.md). |
 | `scripts/generate.py` | Generates from the command line against the running server. Standard library only. |
 | `scripts/make_workflow.py` | Regenerates the two workflow files, e.g. after renaming the checkpoint (`--ckpt`) or changing the rating band (`--rating`). |
 | `scripts/resolve_civitai.py` | Picks the right file out of a Civitai API response. Used by the downloader. |
@@ -47,6 +48,22 @@ you already have one, or want the model on a different disk:
 COMFY_DIR=/mnt/ai/ComfyUI ./scripts/install_comfyui.sh
 COMFY_DIR=/mnt/ai/ComfyUI ./scripts/download_model.sh
 ```
+
+## From your phone
+
+```bash
+./scripts/run.sh                    # terminal 1
+python3 scripts/serve_mobile.py     # terminal 2 — prints the address to open
+```
+
+ComfyUI's node graph is painful on a touchscreen, so this serves a small page
+built for a phone instead: prompt box, rating and shape buttons, Generate.
+
+**ComfyUI has no authentication of any kind**, so never port-forward it to the
+internet. On your own Wi-Fi the command above is fine; away from home, use
+Tailscale. `serve_mobile.py` exposes only queue/poll/fetch/cancel and takes a
+`--token`. [docs/mobile.md](docs/mobile.md) covers finding your IP, firewalls,
+Tailscale, and the security details.
 
 ## Generating from the command line
 
@@ -105,6 +122,10 @@ These check the parts that can be checked without a GPU or the weights:
   resume-after-interruption, skip-if-complete, `--force`, and checksum rejection
 - the Civitai response parser is exercised against fixtures, error cases included
 - `generate.py` is driven against a stub ComfyUI server
+- `serve_mobile.py` is checked to forward the four endpoints it should and to
+  refuse everything else, plus token handling
+- the mobile page is driven in a real headless Chromium at phone viewport size
+  (skipped if playwright is not installed)
 
 ## Troubleshooting
 
