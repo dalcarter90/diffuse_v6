@@ -53,6 +53,56 @@ def negative_prompt(rating):
     return f"score_6, score_5, score_4, {OPPOSING_RATING[rating]}, {QUALITY_NEGATIVE}"
 
 
+# --- presets -----------------------------------------------------------------
+#
+# Pony V6 and ordinary SDXL models want genuinely different settings, and using
+# one model's settings on the other quietly degrades output rather than
+# erroring. The differences that matter:
+#
+#   * Score tags. Pony was trained with them. On a non-Pony model they are
+#     meaningless tokens that eat prompt budget and can steer output worse.
+#   * CLIP skip. Pony expects -2; stock SDXL finetunes expect -1.
+#   * CFG. Pony likes ~7; photoreal SDXL models usually want lower.
+
+SDXL_SUBJECT = (
+    "photo of a man in a weathered leather jacket, short dark hair, "
+    "standing on a rain-slick city street at night, neon reflections, "
+    "shallow depth of field, detailed skin texture, natural lighting"
+)
+
+SDXL_NEGATIVE = (
+    "cartoon, anime, illustration, drawing, painting, 3d render, cgi, "
+    "worst quality, low quality, lowres, bad anatomy, bad hands, "
+    "extra digits, fewer digits, jpeg artifacts, signature, watermark, "
+    "username, blurry, text"
+)
+
+PRESETS = {
+    "pony": {
+        "basename": "pony_v6_txt2img",
+        "ckpt": "ponyDiffusionV6XL.safetensors",
+        "clip_skip": -2,
+        "steps": 30,
+        "cfg": 7.0,
+        "sampler": "euler_ancestral",
+        "scheduler": "normal",
+        "filename_prefix": "PonyV6XL",
+        "scored": True,
+    },
+    "sdxl": {
+        "basename": "sdxl_txt2img",
+        "ckpt": "juggernautXL.safetensors",
+        "clip_skip": -1,
+        "steps": 30,
+        "cfg": 5.0,
+        "sampler": "dpmpp_2m",
+        "scheduler": "karras",
+        "filename_prefix": "SDXL",
+        "scored": False,
+    },
+}
+
+
 class Graph:
     """Builds the two ComfyUI serialisation formats from one node list."""
 
@@ -179,15 +229,17 @@ WIDGET_NAMES = {
 UI_ONLY_WIDGETS = {"KSampler": 1}   # control_after_generate sits at index 1
 
 
-def build(ckpt, positive, negative, width, height, steps, cfg, sampler, scheduler, seed):
+def build(ckpt, positive, negative, width, height, steps, cfg, sampler, scheduler,
+          seed, clip_skip=-2, filename_prefix="ComfyUI"):
     g = Graph()
 
     g.add(4, "CheckpointLoaderSimple", (40, 500), (340, 100),
           outputs=["MODEL", "CLIP", "VAE"], widgets=[ckpt])
 
-    # Pony V6 XL is trained for CLIP skip 2. -2 means "stop one layer early".
+    # CLIP skip. Pony V6 XL is trained for -2 ("stop one layer early"); stock
+    # SDXL finetunes expect -1, which is the no-op default.
     g.add(10, "CLIPSetLastLayer", (40, 650), (340, 60),
-          outputs=["CLIP"], widgets=[-2], inputs={"clip": (4, 1)})
+          outputs=["CLIP"], widgets=[clip_skip], inputs={"clip": (4, 1)})
 
     g.add(6, "CLIPTextEncode", (420, 200), (440, 220),
           outputs=["CONDITIONING"], widgets=[positive], inputs={"clip": (10, 0)})
@@ -207,53 +259,81 @@ def build(ckpt, positive, negative, width, height, steps, cfg, sampler, schedule
           outputs=["IMAGE"], widgets=[], inputs={"samples": (3, 0), "vae": (4, 2)})
 
     g.add(9, "SaveImage", (1270, 330), (440, 460),
-          outputs=[], widgets=["PonyV6XL"], inputs={"images": (8, 0)})
+          outputs=[], widgets=[filename_prefix], inputs={"images": (8, 0)})
 
     return g
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--ckpt", default="ponyDiffusionV6XL.safetensors",
-                    help="checkpoint filename as it appears in models/checkpoints/")
-    ap.add_argument("--width", type=int, default=1024)
-    ap.add_argument("--height", type=int, default=1024)
-    ap.add_argument("--steps", type=int, default=30)
-    ap.add_argument("--cfg", type=float, default=7.0)
-    ap.add_argument("--sampler", default="euler_ancestral")
-    ap.add_argument("--scheduler", default="normal")
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--rating", choices=RATINGS, default="explicit",
-                    help="which rating band the prompts ask for (default: explicit)")
-    ap.add_argument("--outdir", default=None)
-    args = ap.parse_args()
+def write_preset(name, outdir, rating, overrides):
+    """Generate one preset's UI and API workflow files."""
+    cfg = dict(PRESETS[name])
+    cfg.update({k: v for k, v in overrides.items() if v is not None})
 
-    positive = positive_prompt(args.rating)
-    negative = negative_prompt(args.rating)
+    if cfg["scored"]:
+        positive = positive_prompt(rating)
+        negative = negative_prompt(rating)
+    else:
+        # No score / rating / source tags - they mean nothing outside Pony.
+        positive = SDXL_SUBJECT
+        negative = SDXL_NEGATIVE
 
-    g = build(args.ckpt, positive, negative, args.width, args.height,
-              args.steps, args.cfg, args.sampler, args.scheduler, args.seed)
+    def make():
+        return build(cfg["ckpt"], positive, negative, cfg["width"], cfg["height"],
+                     cfg["steps"], cfg["cfg"], cfg["sampler"], cfg["scheduler"],
+                     cfg["seed"], clip_skip=cfg["clip_skip"],
+                     filename_prefix=cfg["filename_prefix"])
 
+    ui_graph = make()
+    api_graph = make()
     # The API format must not carry the UI-only widgets.
-    api_graph = build(args.ckpt, positive, negative, args.width,
-                      args.height, args.steps, args.cfg, args.sampler,
-                      args.scheduler, args.seed)
     for node in api_graph.nodes:
         drop = UI_ONLY_WIDGETS.get(node["type"])
         if drop is not None:
             node["widgets"] = node["widgets"][:drop] + node["widgets"][drop + 1:]
 
+    ui_path = outdir / f"{cfg['basename']}.json"
+    api_path = outdir / f"{cfg['basename']}_api.json"
+    ui_path.write_text(json.dumps(ui_graph.to_ui(), indent=2) + "\n")
+    api_path.write_text(json.dumps(api_graph.to_api(WIDGET_NAMES), indent=2) + "\n")
+    print(f"wrote {ui_path}")
+    print(f"wrote {api_path}")
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--preset", choices=sorted(PRESETS), default=None,
+                    help="which workflow to generate (default: all of them)")
+    ap.add_argument("--ckpt", default=None,
+                    help="checkpoint filename as it appears in models/checkpoints/")
+    ap.add_argument("--width", type=int, default=1024)
+    ap.add_argument("--height", type=int, default=1024)
+    ap.add_argument("--steps", type=int, default=None)
+    ap.add_argument("--cfg", type=float, default=None)
+    ap.add_argument("--sampler", default=None)
+    ap.add_argument("--scheduler", default=None)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--rating", choices=RATINGS, default="explicit",
+                    help="rating band for the pony preset (default: explicit)")
+    ap.add_argument("--outdir", default=None)
+    args = ap.parse_args()
+
+    overrides = {
+        "ckpt": args.ckpt, "steps": args.steps, "cfg": args.cfg,
+        "sampler": args.sampler, "scheduler": args.scheduler,
+    }
+    # width/height/seed have real defaults rather than None, so pass them through.
+    overrides.update(width=args.width, height=args.height, seed=args.seed)
+
+    if args.ckpt is not None and args.preset is None:
+        ap.error("--ckpt changes one model's workflow, so name it with --preset")
+
     outdir = pathlib.Path(args.outdir) if args.outdir \
         else pathlib.Path(__file__).resolve().parent.parent / "workflows"
     outdir.mkdir(parents=True, exist_ok=True)
 
-    ui_path = outdir / "pony_v6_txt2img.json"
-    api_path = outdir / "pony_v6_txt2img_api.json"
-    ui_path.write_text(json.dumps(g.to_ui(), indent=2) + "\n")
-    api_path.write_text(json.dumps(api_graph.to_api(WIDGET_NAMES), indent=2) + "\n")
-    print(f"wrote {ui_path}")
-    print(f"wrote {api_path}")
+    for name in ([args.preset] if args.preset else sorted(PRESETS)):
+        write_preset(name, outdir, args.rating, overrides)
 
 
 if __name__ == "__main__":

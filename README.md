@@ -38,7 +38,7 @@ CPU. Override with `--backend nvidia|rocm|xpu|mps|cpu` if the guess is wrong.
 | `scripts/run.sh` | Starts the server. Extra arguments pass through to ComfyUI (`--lowvram`, `--listen 0.0.0.0`, `--port 8189`, `--fp32-vae`, …). |
 | `scripts/serve_mobile.py` | Serves a phone-friendly page on `:8189` and forwards only four endpoints to ComfyUI. See [docs/mobile.md](docs/mobile.md). |
 | `scripts/generate.py` | Generates from the command line against the running server. Standard library only. |
-| `scripts/make_workflow.py` | Regenerates the two workflow files, e.g. after renaming the checkpoint (`--ckpt`) or changing the rating band (`--rating`). |
+| `scripts/make_workflow.py` | Regenerates the workflow files. `--preset pony\|sdxl`, `--ckpt` to match your filename, `--rating` for the Pony band. |
 | `scripts/resolve_civitai.py` | Picks the right file out of a Civitai API response. Used by the downloader. |
 
 Set `COMFY_DIR` to install ComfyUI somewhere other than `./ComfyUI` — useful if
@@ -77,16 +77,28 @@ python3 scripts/generate.py "cyberpunk street at night, neon" --width 1216 --hei
 The score tag prefix Pony V6 needs is prepended automatically. Images land in
 `ComfyUI/output/`.
 
-## The workflow
+## The workflows
 
-`workflows/pony_v6_txt2img.json` is the one to open in the browser.
-`workflows/pony_v6_txt2img_api.json` is the same graph in the flat API format
-that `/prompt` accepts.
+Two of them, because Pony and ordinary SDXL models want different settings:
 
-It is a plain SDXL text-to-image graph with the Pony-specific bits set
-correctly: **CLIP skip 2** (`CLIPSetLastLayer` at `-2`), the **score tag
-prefix** in the positive prompt, **`rating_explicit`** with `rating_safe`
-negated, **1024×1024** latents, CFG 7 and 30 steps of `euler_ancestral`.
+| File | For | CLIP skip | Score tags | CFG |
+| ---- | --- | --------- | ---------- | --- |
+| `workflows/pony_v6_txt2img.json` | Pony V6 XL and its finetunes | −2 | yes | 7.0 |
+| `workflows/sdxl_txt2img.json` | stock SDXL models (Juggernaut XL, RealVisXL, DreamShaper XL) | −1 | no | 5.0 |
+
+Each has an `_api.json` twin — the same graph in the flat format `/prompt`
+accepts.
+
+**Using the wrong one degrades output without erroring.** Score tags are
+vocabulary Pony was trained on; on a non-Pony model they are meaningless tokens
+that consume prompt budget. CLIP skip differs too: Pony expects −2, stock SDXL
+finetunes −1. Pony *derivatives* (a "Pony Realism" style merge) keep Pony's
+vocabulary, so use the pony workflow for those.
+
+The Pony one sets the model-specific bits correctly: **CLIP skip 2**
+(`CLIPSetLastLayer` at `-2`), the **score tag prefix** in the positive prompt,
+**`rating_explicit`** with `rating_safe` negated, **1024×1024** latents, CFG 7
+and 30 steps of `euler_ancestral`.
 
 Those settings are not arbitrary and the model is noticeably worse without
 them — **[docs/prompting.md](docs/prompting.md)** explains the score tags,
@@ -105,7 +117,11 @@ one, point the script at any mirror you trust:
 Or download by hand and drop the file at
 `ComfyUI/models/checkpoints/ponyDiffusionV6XL.safetensors`. The workflow
 expects that exact filename; if yours differs, either rename it or run
-`python3 scripts/make_workflow.py --ckpt yourfile.safetensors`.
+`python3 scripts/make_workflow.py --preset pony --ckpt yourfile.safetensors`.
+
+The SDXL workflow defaults to `juggernautXL.safetensors` and takes the same
+treatment: `--preset sdxl --ckpt yourfile.safetensors`. Run it with no
+arguments to regenerate both.
 
 ## Tests
 

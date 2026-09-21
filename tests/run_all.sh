@@ -17,9 +17,9 @@ done
 echo
 echo "== workflows are regenerated deterministically =="
 # make_workflow.py must reproduce exactly what is committed.
-before="$(cat workflows/pony_v6_txt2img.json workflows/pony_v6_txt2img_api.json)"
+before="$(cat workflows/*.json)"
 python3 scripts/make_workflow.py >/dev/null
-after="$(cat workflows/pony_v6_txt2img.json workflows/pony_v6_txt2img_api.json)"
+after="$(cat workflows/*.json)"
 if [ "$before" = "$after" ]; then
   echo "PASS committed workflows match scripts/make_workflow.py output"
 else

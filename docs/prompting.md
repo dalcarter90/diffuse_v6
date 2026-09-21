@@ -132,3 +132,29 @@ username, blurry, text
 Reading order inside the prompt is roughly: score tags → rating → source →
 subject → subject details → setting → lighting and style. The model weights
 earlier tags a little more heavily, so lead with what you care about most.
+
+## Using a non-Pony model
+
+None of the above applies to a stock SDXL finetune such as Juggernaut XL,
+RealVisXL or DreamShaper XL. Those models never saw Pony's tag vocabulary, so
+`score_9`, `rating_safe` and `source_anime` are just tokens spent for nothing —
+and they can pull output in odd directions.
+
+Use `workflows/sdxl_txt2img.json` for those. Same graph, with the score tags
+removed, CLIP skip at −1 instead of −2, and CFG 5 instead of 7. Prompt it in
+plain descriptive language or ordinary tags:
+
+```
+photo of a man in a weathered leather jacket, short dark hair,
+standing on a rain-slick city street at night, neon reflections,
+shallow depth of field, detailed skin texture, natural lighting
+```
+
+The dividing line is the model's ancestry, not its subject matter. A model
+finetuned *from* Pony V6 — the "Pony Realism" style merges — keeps the whole
+score/rating/source vocabulary, so use the pony workflow for it. Anything
+descended from base SDXL uses the sdxl workflow.
+
+If you are unsure which you have, its model page will say what it was trained
+from. Failing that: generate the same prompt both ways and keep whichever looks
+better.
