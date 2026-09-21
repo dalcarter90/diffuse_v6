@@ -91,7 +91,7 @@ PRESETS = {
     },
     "sdxl": {
         "basename": "sdxl_txt2img",
-        "ckpt": "juggernautXL.safetensors",
+        "ckpt": "juggernautXL_ragnarok.safetensors",
         "clip_skip": -1,
         "steps": 30,
         "cfg": 5.0,

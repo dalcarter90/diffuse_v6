@@ -47,7 +47,7 @@
         "Node name for S&R": "CheckpointLoaderSimple"
       },
       "widgets_values": [
-        "juggernautXL.safetensors"
+        "juggernautXL_ragnarok.safetensors"
       ]
     },
     {

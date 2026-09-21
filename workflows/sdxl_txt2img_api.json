@@ -2,7 +2,7 @@
   "4": {
     "class_type": "CheckpointLoaderSimple",
     "inputs": {
-      "ckpt_name": "juggernautXL.safetensors"
+      "ckpt_name": "juggernautXL_ragnarok.safetensors"
     }
   },
   "10": {
